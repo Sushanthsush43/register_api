@@ -1,27 +1,30 @@
-const twilio = require('twilio');
-require('dotenv').config();
+const twilio = require("twilio");
 
+const accountSid = "ACdb49678bb4747792d2eaced7c2a8853c";
+const authToken = "bc987f24e911b6c12d515ec61b58aeeb";
+const contentSid = "HXb5b62575e6e4ff6129ad7c8efe1f983e"; // Update with approved template SID
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = twilio(accountSid, authToken);
 
-async function sendOTPWhatsApp(to, otp) {
-  try {
-    const message = await client.messages.create({
-      from: process.env.TWILIO_FROM,
-      contentSid: process.env.TWILIO_TEMPLATE_SID,
+function sendWhatsAppOTP(phone, otp) {
+  return client.messages
+    .create({
+      from: "whatsapp:+14155238886",
+      to: `whatsapp:${phone}`,
+      contentSid: contentSid,
       contentVariables: JSON.stringify({
         "1": otp,
-        "2": "5 minutes"
+        "2": "30 seconds",
       }),
-      to: `whatsapp:${to}`
+    })
+    .then((message) => {
+      console.log("Message sent! SID:", message.sid);
+      return message.sid; // Return SID for potential further use
+    })
+    .catch((error) => {
+      console.error("❌ Error sending message:", error);
+      throw error; // Propagate error for handling
     });
-
-    console.log('Message sent! SID:', message.sid);
-  } catch (error) {
-    console.error('Error sending OTP via WhatsApp:', error);
-  }
 }
 
-module.exports = sendOTPWhatsApp;
+module.exports = { sendWhatsAppOTP };
