@@ -7,7 +7,7 @@ const client = twilio(accountSid, authToken);
 async function sendOTPWhatsApp(to, otp) {
   try {
     const message = await client.messages.create({
-      from: process.env.TWILIO_PHONE_NUMBER, 
+      from: process.env.TWILIO_FROM,
       contentSid: process.env.TWILIO_TEMPLATE_SID,
       contentVariables: JSON.stringify({
         "1": otp,
