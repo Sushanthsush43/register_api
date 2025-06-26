@@ -2,6 +2,7 @@ const express = require("express");
 const admin = require("firebase-admin");
 const multer = require("multer");
 const sendWhatsAppOTP = require("./twilioService");
+require('dotenv').config();
 
 const app = express();
 const upload = multer();
