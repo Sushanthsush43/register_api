@@ -51,10 +51,11 @@ app.post("/register", upload.none(), async (req, res) => {
       message: "User registered successfully. OTP sent via WhatsApp.",
       otp, // keep for testing only
     });
-  } catch (error) {
-    console.error("Registration error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
+} catch (error) {
+  console.error("❌ Registration error:", error);
+  res.status(500).json({ message: "Server error", error: error.message });
+}
+
 });
 
 app.listen(3000, () => {
