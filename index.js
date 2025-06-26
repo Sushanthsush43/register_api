@@ -7,7 +7,6 @@ require('dotenv').config();
 const app = express();
 const upload = multer();
 const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
-
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
