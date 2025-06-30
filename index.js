@@ -4,31 +4,45 @@ const multer = require('multer');
 const admin = require('firebase-admin');
 const sendOTPWhatsApp = require('./twilioService');
 
-// Initialize Express app
 const app = express();
 const upload = multer();
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+// Initialize Firebase Admin with better error handling
+let firebaseInitialized = false;
 
-// Initialize Firebase Admin
 try {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is missing');
+  }
+
+  const serviceAccount = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
+  );
+
   admin.initializeApp({
-    credential: admin.credential.cert(
-      JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString())
-    ),
+    credential: admin.credential.cert(serviceAccount),
     databaseURL: process.env.FIREBASE_DATABASE_URL
   });
+
+  firebaseInitialized = true;
+  console.log('Firebase initialized successfully');
 } catch (error) {
-  console.error('Firebase initialization error:', error);
+  console.error('Firebase initialization failed:', error);
+  process.exit(1); // Exit if Firebase fails to initialize
 }
 
 // Registration endpoint
 app.post('/register', upload.none(), async (req, res) => {
+  if (!firebaseInitialized) {
+    return res.status(500).json({ 
+      message: 'Server configuration error',
+      error: 'Firebase not initialized'
+    });
+  }
+
   try {
     const { name, email, phone } = req.body;
     
-    // Validate required fields
     if (!name || !email || !phone) {
       return res.status(400).json({ 
         message: 'Missing required fields',
@@ -36,7 +50,6 @@ app.post('/register', upload.none(), async (req, res) => {
       });
     }
 
-    // Save to Firestore
     const db = admin.firestore();
     const userRef = await db.collection('users').add({ 
       name, 
@@ -45,11 +58,9 @@ app.post('/register', upload.none(), async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp() 
     });
 
-    // Generate and send OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await sendOTPWhatsApp(phone, otp);
 
-    // Success response
     res.status(201).json({ 
       message: 'Registration successful',
       userId: userRef.id,
@@ -67,17 +78,13 @@ app.post('/register', upload.none(), async (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy' });
+  res.status(200).json({ 
+    status: firebaseInitialized ? 'healthy' : 'degraded',
+    firebase: firebaseInitialized ? 'connected' : 'disconnected'
+  });
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled rejection:', error);
 });
