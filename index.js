@@ -1,66 +1,64 @@
-const express = require('express');
-const multer = require('multer');
-const admin = require('firebase-admin');
-const sendOTPWhatsApp = require('./twilioService');
-const dotenv = require('dotenv');
+const express = require("express");
+const admin = require("firebase-admin");
+const bodyParser = require("body-parser");
+const cors = require("cors");
 
-require('dotenv').config(); // If using .env locally
-
-const admin = require('firebase-admin');
-
-const serviceAccount = JSON.parse(
-  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
-);
-
+// Initialize Firebase Admin with credentials from environment variables
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  }),
 });
-// Load env vars from .env locally
+
+const db = admin.firestore();
 
 const app = express();
-const upload = multer();
+app.use(cors());
+app.use(bodyParser.json());
 
-try {
-  const serviceAccountJSON = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
-  );
+// Registration Endpoint
+app.post("/register", async (req, res) => {
+  const { name, email, password } = req.body;
 
-  console.log("✅ Using Firebase service account:", serviceAccountJSON.client_email);
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: "Missing fields" });
+  }
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccountJSON)
-  });
-
-  // Test Firestore access
-  admin.firestore().listCollections().then(collections => {
-    console.log("✅ Firestore accessible. Collections:", collections.map(c => c.id));
-  }).catch(err => {
-    console.error("❌ Firestore access failed:", err.message);
-  });
-
-} catch (err) {
-  console.error("❌ Failed to load service account:", err.message);
-}
-
-app.post('/register', upload.none(), async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name,
+    });
 
-    if (!name || !email || !phone) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
+    await db.collection("users").doc(userRecord.uid).set({
+      name,
+      email,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-    const db = admin.firestore();
-    await db.collection('users').add({ name, email, phone });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await sendOTPWhatsApp(phone, otp);
-
-    res.status(200).json({ message: 'Registration successful', otp });
+    res.status(201).json({ message: "User registered", uid: userRecord.uid });
   } catch (error) {
-    console.error('❌ Error during registration:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Registration failed", error: error.message });
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// Login Endpoint (optional simulation)
+app.post("/login", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await admin.auth().getUserByEmail(email);
+    res.status(200).json({ message: "User exists", user });
+  } catch (error) {
+    res.status(404).json({ message: "User not found", error: error.message });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
