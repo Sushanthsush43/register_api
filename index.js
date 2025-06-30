@@ -4,7 +4,18 @@ const admin = require('firebase-admin');
 const sendOTPWhatsApp = require('./twilioService');
 const dotenv = require('dotenv');
 
-dotenv.config(); // Load env vars from .env locally
+require('dotenv').config(); // If using .env locally
+
+const admin = require('firebase-admin');
+
+const serviceAccount = JSON.parse(
+  Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
+);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+// Load env vars from .env locally
 
 const app = express();
 const upload = multer();
@@ -52,5 +63,4 @@ app.post('/register', upload.none(), async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
