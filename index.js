@@ -56,7 +56,7 @@ app.post("/login", async (req, res) => {
   } catch (error) {
     console.error("🔥 Error during registration:", error);
     res.status(500).send({ message: "Server error", error: error.message });
-  }}
+  }
 });
 
 const PORT = process.env.PORT || 3000;
