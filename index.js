@@ -15,6 +15,8 @@ admin.initializeApp({
 const db = admin.firestore();
 
 const app = express();
+const upload = multer();
+
 app.use(cors());
 app.use(bodyParser.json());
 
