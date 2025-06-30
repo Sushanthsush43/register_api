@@ -19,30 +19,32 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Registration Endpoint
-app.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-
+app.post('/register', upload.none(), async (req, res) => {
   try {
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName: name,
-    });
-
-    await db.collection("users").doc(userRecord.uid).set({
-      name,
-      email,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    res.status(201).json({ message: "User registered", uid: userRecord.uid });
+    console.log('Request body:', req.body); // Log incoming request
+    const { name, email, phone } = req.body;
+    if (!name || !email || !phone) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    
+    const db = admin.firestore();
+    const docRef = await db.collection('users').add({ name, email, phone });
+    console.log('Document written with ID: ', docRef.id);
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await sendOTPWhatsApp(phone, otp);
+    res.status(200).json({ message: 'Registration successful', otp });
   } catch (error) {
-    console.error("Registration error:", error);
-    res.status(500).json({ message: "Registration failed", error: error.message });
+    console.error('Detailed error:', {
+      message: error.message,
+      stack: error.stack,
+      fullError: error
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
