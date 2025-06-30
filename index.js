@@ -54,8 +54,9 @@ app.post("/login", async (req, res) => {
     const user = await admin.auth().getUserByEmail(email);
     res.status(200).json({ message: "User exists", user });
   } catch (error) {
-    res.status(404).json({ message: "User not found", error: error.message });
-  }
+    console.error("🔥 Error during registration:", error);
+    res.status(500).send({ message: "Server error", error: error.message });
+  }}
 });
 
 const PORT = process.env.PORT || 3000;
