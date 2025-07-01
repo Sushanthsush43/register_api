@@ -5,11 +5,17 @@ const admin = require('firebase-admin');
 const app = express();
 const upload = multer();
 
-admin.initializeApp({
-  credential: admin.credential.cert(
-    JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString())
-  )
-});
+// Initialize Firebase with raw JSON string
+try {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Firebase initialization error:', error.stack);
+  process.exit(1);
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -21,7 +27,6 @@ app.post('/register', upload.none(), async (req, res) => {
       throw new Error('Missing required fields: name, email, or phone');
     }
 
-    // Save to Firestore
     const db = admin.firestore();
     await db.collection('users').add({ name, email, phone });
     console.log('User data saved to Firestore');
